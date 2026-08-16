@@ -1,3 +1,5 @@
+from database import init_db, drop_tables, insert, fetch_all, update
+
 STATUS_OPTIONS = {
     1: "Applied",
     2: "Interview",
@@ -5,22 +7,30 @@ STATUS_OPTIONS = {
     4: "Rejected"
 }
 
-applications = []
-
 def add_job(company, position, status):
-    job = {
-    "company": company,
-    "position": position,
-    "status": status
-}
+    job_id = insert(
+        "applications",
+        {
+            "company": company,
+            "position": position,
+            "status": status
+        }
+    )
 
-    applications.append(job)
+    return job_id
 
 
 def list_jobs():
-    if applications:
-        for i, v in enumerate(applications, start=1):
-            print(f"\n{i}. {v['company']} - {v['position']} - {v['status']}")
+    jobs = fetch_all("applications")
+
+    if jobs:
+        for job in jobs:
+            print(
+                f"\n{job[0]}."
+                f"{job[1]} - "
+                f"{job[2]} - "
+                f"{job[3]}"
+            )
 
     else:
         print("\nThere is no application!\n")   
@@ -61,37 +71,55 @@ def take_status():
 4. Rejected
 """
     status_no = input(f"{status_menu}")
+    
 
     if status_no.isdigit():
         status_no = int(status_no)
-        if status_no in STATUS_OPTIONS.keys():
-            return STATUS_OPTIONS.get(status_no)
+        return STATUS_OPTIONS.get(status_no)
     
     return None
 
 def update_status():
-    if not applications:
+    jobs = fetch_all("applications")
+
+    if not jobs:
         print("There is no application!")
+        return
+    
+    list_jobs()
 
+    app_id = input("\nSelect application ID:")
+
+    if not app_id.isdigit():
+        print("Invalid application ID.")
+        return
+            
+    app_id = int(app_id)
+
+    job_ids = [job[0] for job in jobs]
+
+    if app_id not in job_ids:
+        print("Application not found.")
+        return
+    
+    while True:
+        status = take_status()
+
+        if status is not None:
+            break
+
+        print("Enter a valid option.")
+    
+    updated_rows = update("applications", 
+                            {"status": status},
+                            "id = ?",
+                            (app_id,))
+    
+    if updated_rows > 0:
+        print("\nStatus updated successfully.")
     else:
-        list_jobs()
-        app_number = input("\nSelect application number:")
-        if app_number.isdigit():
-            app_number = int(app_number)
+        print("\nStatus could not be updated.")
 
-            if 0 < app_number <= len(applications):
-                status = None
-
-                while True:
-                    status = take_status()
-                    if status is not None:
-                        applications[app_number-1]["status"] = status
-                        print("Status updated successfully.")
-                        break
-            else:
-                print("Invalid option")
-        else:
-            print("Invalid option")
             
 
 def main():
@@ -111,8 +139,12 @@ def main():
                     break
                 print("Enter a valid option")
 
-            add_job(company, position, status)
-            print("\nJob added successfully.")
+            job_id = add_job(company, position, status)
+
+            if job_id is not None:
+                print(f"\nJob added successfully. ID: {job_id}")
+            else:
+                print("\nJob could not be added.")
 
         elif slt == 2:
             print("List Jobs selected")
@@ -130,6 +162,10 @@ def main():
 
 
 if __name__ == "__main__":
+    init_db()
+    tables = ["products"]
+    # drop_tables("jobs.db", tables=tables)
+
     res = None
 
     while True:
