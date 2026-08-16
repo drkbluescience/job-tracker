@@ -1,4 +1,4 @@
-from database import init_db, drop_tables, insert, fetch_all, update
+from database import init_db, drop_tables, insert, fetch_all, update, delete
 
 STATUS_OPTIONS = {
     1: "Applied",
@@ -34,32 +34,6 @@ def list_jobs():
 
     else:
         print("\nThere is no application!\n")   
-    
-
-def show_menu():
-    txt = """
-=== Job Application Tracker ===
-1. Add Job
-2. List Jobs
-3. Update Status
-4. Exit
-
-Select an option:
-"""
-
-    slt = input(f"{txt}")
-
-    if slt.isdigit():
-        slt = int(slt)
-        if 0 < slt < 5:
-            return slt
-        else:
-            print("Invalid option")
-            return None
-    
-    else:
-        print("Invalid option")
-        return None
 
 def take_status():
     status_menu = """
@@ -79,12 +53,11 @@ def take_status():
     
     return None
 
-def update_status():
+def get_application_id():
     jobs = fetch_all("applications")
-
     if not jobs:
         print("There is no application!")
-        return
+        return None
     
     list_jobs()
 
@@ -92,16 +65,22 @@ def update_status():
 
     if not app_id.isdigit():
         print("Invalid application ID.")
-        return
-            
+        return None
+    
     app_id = int(app_id)
-
+    
     job_ids = [job[0] for job in jobs]
 
     if app_id not in job_ids:
         print("Application not found.")
-        return
+        return None
     
+    return app_id
+
+
+def update_status():
+    app_id = get_application_id()
+
     while True:
         status = take_status()
 
@@ -120,7 +99,83 @@ def update_status():
     else:
         print("\nStatus could not be updated.")
 
-            
+
+def list_notes(app_id):
+    notes = fetch_all(
+        "notes",
+        "application_id = ?",
+        (app_id,)
+        )
+    
+    return notes
+    
+
+def add_note(app_id):
+    note = input("Note: ")
+
+    if not note.strip():
+        print("Note cannot be empty.")
+        return None
+
+    note_id = insert(
+        "notes",
+        {
+            "application_id": app_id,
+            "content": note
+        }
+    )
+    return note_id
+     
+def delete_job():
+    app_id = get_application_id()
+
+    if app_id is None:
+        return
+
+    confirmation = input(
+        "Are you sure you want to delete this application? (y/n): "
+    )
+
+    if confirmation.lower() != "y":
+        print("Delete cancelled.")
+        return
+
+    delete_rows = delete(
+        "applications",
+        "id = ?",
+        (app_id,)
+    )
+
+    if delete_rows > 0:
+        print("Application deleted successfully.")
+    else:
+        print("Application could not be deleted.")
+
+
+def show_menu():
+    txt = """
+=== Job Application Tracker ===
+1. Add Job
+2. List Jobs
+3. Update Status
+4. Add Note
+5. List Notes
+6. Delete Job
+7. Exit
+
+Select an option:
+"""
+
+    slt = input(f"{txt}")
+
+    if slt.isdigit():
+        slt = int(slt)
+        if 0 < slt < 8:
+            return slt
+    
+    print("Invalid option")
+    return None
+          
 
 def main():
     slt = show_menu()
@@ -135,9 +190,11 @@ def main():
 
             while True:
                 status = take_status()
+
                 if status is not None:
                     break
-                print("Enter a valid option")
+
+                print("Enter a valid option.")
 
             job_id = add_job(company, position, status)
 
@@ -152,9 +209,42 @@ def main():
 
         elif slt == 3:
             update_status()
-
-
+        
         elif slt == 4:
+            app_id = get_application_id()
+            if app_id is not None:
+                note_id = add_note(app_id)
+
+                if note_id is not None:
+                    print(
+                        f"\nNote added successfully. "
+                        f"ID: {note_id}"
+                    )
+                else:
+                    print("")
+
+        elif slt == 5:
+            app_id = get_application_id()
+
+            if app_id is not None:
+                notes = list_notes(app_id)
+
+                if notes:
+                    print("\nNotes:")
+
+                    for note in notes:
+                        print(
+                            f"{note[0]}. {note[2]}"
+                        )
+                else:
+                    print(
+                        "\nThere are no notes "
+                        "for this application."
+                    )
+        elif slt == 6:
+            delete_job()
+
+        elif slt == 7:
             print("Goodbye!")
 
     return slt
@@ -170,6 +260,6 @@ if __name__ == "__main__":
 
     while True:
         res = main()
-        if res == 4:
+        if res == 7:
             break
 

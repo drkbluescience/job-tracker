@@ -40,6 +40,7 @@ def init_db():
             content TEXT NOT NULL,
             FOREIGN KEY (application_id)
                 REFERENCES applications(id)
+                ON DELETE CASCADE
         ) 
         """
     ]
